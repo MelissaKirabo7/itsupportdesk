@@ -34,7 +34,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             key={item.to}
             to={item.to}
             onClick={onNavigate}
-            activeOptions={{ exact: "exact" in item ? item.exact : false }}
+            activeOptions={{ exact: item.to === "/" }}
             className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[status=active]:bg-sidebar-primary data-[status=active]:font-semibold data-[status=active]:text-sidebar-primary-foreground"
           >
             <item.icon className="h-4 w-4 shrink-0" />
