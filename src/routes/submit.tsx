@@ -43,11 +43,12 @@ function SubmitPage() {
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState<Category>("Hardware");
   const [priority, setPriority] = useState<Priority>("medium");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  type Errors = { title?: string; description?: string; location?: string };
+  const [errors, setErrors] = useState<Errors>({});
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const next: Record<string, string> = {};
+    const next: Errors = {};
     if (title.trim().length < 8) next.title = "Give a summary of at least 8 characters.";
     if (description.trim().length < 20)
       next.description = "Add at least 20 characters so the technician can triage it.";
