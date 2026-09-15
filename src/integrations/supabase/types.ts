@@ -14,16 +14,283 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      announcements: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          message: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          message: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          message?: string
+        }
+        Relationships: []
+      }
+      canned_responses: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      faq_articles: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          id: string
+          published: boolean
+          source_ticket_id: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          created_at?: string
+          id?: string
+          published?: boolean
+          source_ticket_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          published?: boolean
+          source_ticket_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faq_articles_source_ticket_id_fkey"
+            columns: ["source_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department: string
+          email: string
+          full_name: string
+          id: string
+          location: string
+          on_leave: boolean
+          workstation: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string
+          email: string
+          full_name?: string
+          id: string
+          location?: string
+          on_leave?: boolean
+          workstation?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          email?: string
+          full_name?: string
+          id?: string
+          location?: string
+          on_leave?: boolean
+          workstation?: string
+        }
+        Relationships: []
+      }
+      ticket_notes: {
+        Row: {
+          author_email: string
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          internal: boolean
+          ticket_id: string
+        }
+        Insert: {
+          author_email: string
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          internal?: boolean
+          ticket_id: string
+        }
+        Update: {
+          author_email?: string
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          internal?: boolean
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_notes_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          assignee_email: string | null
+          assignee_id: string | null
+          category: string
+          created_at: string
+          department: string
+          description: string
+          id: string
+          location: string
+          parent_ticket_id: string | null
+          pending_since: string | null
+          priority: Database["public"]["Enums"]["ticket_priority"]
+          ref: string
+          reopened_at: string | null
+          requester_email: string
+          requester_id: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          satisfaction: number | null
+          sla_due_at: string
+          status: Database["public"]["Enums"]["ticket_status"]
+          title: string
+          updated_at: string
+          workstation: string
+        }
+        Insert: {
+          assignee_email?: string | null
+          assignee_id?: string | null
+          category: string
+          created_at?: string
+          department?: string
+          description: string
+          id?: string
+          location?: string
+          parent_ticket_id?: string | null
+          pending_since?: string | null
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          ref?: string
+          reopened_at?: string | null
+          requester_email: string
+          requester_id?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          satisfaction?: number | null
+          sla_due_at?: string
+          status?: Database["public"]["Enums"]["ticket_status"]
+          title: string
+          updated_at?: string
+          workstation?: string
+        }
+        Update: {
+          assignee_email?: string | null
+          assignee_id?: string | null
+          category?: string
+          created_at?: string
+          department?: string
+          description?: string
+          id?: string
+          location?: string
+          parent_ticket_id?: string | null
+          pending_since?: string | null
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          ref?: string
+          reopened_at?: string | null
+          requester_email?: string
+          requester_id?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          satisfaction?: number | null
+          sla_due_at?: string
+          status?: Database["public"]["Enums"]["ticket_status"]
+          title?: string
+          updated_at?: string
+          workstation?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_parent_ticket_id_fkey"
+            columns: ["parent_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      bootstrap_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "submitter" | "technician" | "admin"
+      ticket_priority: "low" | "medium" | "high" | "critical"
+      ticket_status: "new" | "in_progress" | "pending" | "resolved" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +417,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["submitter", "technician", "admin"],
+      ticket_priority: ["low", "medium", "high", "critical"],
+      ticket_status: ["new", "in_progress", "pending", "resolved", "closed"],
+    },
   },
 } as const
