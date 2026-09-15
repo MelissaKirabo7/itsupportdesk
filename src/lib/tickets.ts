@@ -1,5 +1,16 @@
-export type Priority = "low" | "medium" | "high" | "critical";
-export type Status = "new" | "in_progress" | "on_hold" | "resolved" | "closed";
+import type { Database } from "@/integrations/supabase/types";
+
+export type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
+export type TicketNote = Database["public"]["Tables"]["ticket_notes"]["Row"];
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type FaqArticle = Database["public"]["Tables"]["faq_articles"]["Row"];
+export type CannedResponse = Database["public"]["Tables"]["canned_responses"]["Row"];
+export type Announcement = Database["public"]["Tables"]["announcements"]["Row"];
+
+export type Priority = Database["public"]["Enums"]["ticket_priority"];
+export type Status = Database["public"]["Enums"]["ticket_status"];
+export type Role = Database["public"]["Enums"]["app_role"];
+
 export type Category =
   | "Hardware"
   | "Software"
@@ -9,35 +20,8 @@ export type Category =
   | "Printing"
   | "Accounts";
 
-export type Role = "end_user" | "technician" | "admin";
-
-export type Note = {
-  id: string;
-  author: string;
-  body: string;
-  at: string; // ISO
-  internal: boolean;
-};
-
-export type Ticket = {
-  id: string;
-  ref: string;
-  title: string;
-  description: string;
-  requester: string;
-  location: string;
-  category: Category;
-  priority: Priority;
-  status: Status;
-  assignee: string | null;
-  createdAt: string;
-  updatedAt: string;
-  slaDueAt: string;
-  notes: Note[];
-};
-
 export const PRIORITIES: Priority[] = ["low", "medium", "high", "critical"];
-export const STATUSES: Status[] = ["new", "in_progress", "on_hold", "resolved", "closed"];
+export const STATUSES: Status[] = ["new", "in_progress", "pending", "resolved", "closed"];
 export const CATEGORIES: Category[] = [
   "Hardware",
   "Software",
@@ -58,9 +42,15 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
 export const STATUS_LABEL: Record<Status, string> = {
   new: "New",
   in_progress: "In Progress",
-  on_hold: "Pending",
+  pending: "Pending",
   resolved: "Resolved",
   closed: "Closed",
+};
+
+export const ROLE_LABEL: Record<Role, string> = {
+  submitter: "Employee",
+  technician: "IT Technician",
+  admin: "Administrator",
 };
 
 /** First-response SLA targets, in hours, per priority. */
@@ -71,184 +61,22 @@ export const SLA_HOURS: Record<Priority, number> = {
   low: 24,
 };
 
-export const CURRENT_USER = {
-  name: "Melissa Kirabo",
-  email: "melissa.kirabo@vicacademy.org",
-  role: "admin" as Role,
-};
+/** Unclaimed critical tickets escalate after this many minutes. */
+export const ESCALATION_MINUTES = 30;
+/** Nudge the submitter after this long in Pending (User). */
+export const PENDING_NUDGE_HOURS = 48;
+/** Pending tickets auto-close after this many days of silence. */
+export const PENDING_AUTOCLOSE_DAYS = 5;
+/** Submitters can reopen a resolved ticket within this many days. */
+export const REOPEN_WINDOW_DAYS = 3;
 
-export const TECHNICIANS = [
-  "melissa.kirabo@vicacademy.org",
-  "daniel.oyoo@vicacademy.org",
-  "grace.mwangi@vicacademy.org",
-];
+export const isActive = (t: Ticket) =>
+  t.status === "new" || t.status === "in_progress" || t.status === "pending";
 
-const BASE = new Date("2026-09-14T09:00:00Z").getTime();
-const h = (n: number) => new Date(BASE - n * 3600_000).toISOString();
-const plus = (iso: string, hours: number) =>
-  new Date(new Date(iso).getTime() + hours * 3600_000).toISOString();
-
-function make(
-  ref: string,
-  title: string,
-  requester: string,
-  location: string,
-  category: Category,
-  priority: Priority,
-  status: Status,
-  assignee: string | null,
-  agedHours: number,
-  description: string,
-  notes: Note[] = [],
-): Ticket {
-  const createdAt = h(agedHours);
-  return {
-    id: ref,
-    ref,
-    title,
-    description,
-    requester,
-    location,
-    category,
-    priority,
-    status,
-    assignee,
-    createdAt,
-    updatedAt: h(Math.max(0, agedHours - 2)),
-    slaDueAt: plus(createdAt, SLA_HOURS[priority]),
-    notes,
-  };
-}
-
-export const SEED_TICKETS: Ticket[] = [
-  make(
-    "RC-4181",
-    "Printer is not working/turning on.",
-    "melissa.kirabo@vicacademy.org",
-    "Library",
-    "Hardware",
-    "medium",
-    "new",
-    "melissa.kirabo@vicacademy.org",
-    48,
-    "The library printer shows no lights and will not power on after the weekend outage.",
-    [
-      {
-        id: "n1",
-        author: "melissa.kirabo@vicacademy.org",
-        body: "Checked the wall socket, still nothing.",
-        at: h(46),
-        internal: false,
-      },
-      {
-        id: "n2",
-        author: "daniel.oyoo@vicacademy.org",
-        body: "Suspect blown PSU fuse — spare unit in store room B.",
-        at: h(40),
-        internal: true,
-      },
-    ],
-  ),
-  make(
-    "RC-4176",
-    "Second monitor not detected on new dock",
-    "Nkem Adeyemi",
-    "Block A · Room 305",
-    "Peripherals",
-    "low",
-    "new",
-    null,
-    192,
-    "New dock only drives one external display; second monitor stays black.",
-  ),
-  make(
-    "RC-4172",
-    "Laptop will not power on after weekend",
-    "Aisha Bello",
-    "Block B · Room 214",
-    "Hardware",
-    "critical",
-    "new",
-    null,
-    192,
-    "Staff laptop is completely dead, no charging LED.",
-  ),
-  make(
-    "RC-4173",
-    "Cannot reach shared drive from meeting room 3",
-    "Stephen John",
-    "Block A · Meeting Room 3",
-    "Network/Wi-Fi",
-    "high",
-    "in_progress",
-    "daniel.oyoo@vicacademy.org",
-    190,
-    "Shared drive mapping fails with a network path error in meeting room 3 only.",
-  ),
-  make(
-    "RC-4177",
-    "ERP client crashes when exporting to Excel",
-    "Aisha Bello",
-    "Block B · Room 214",
-    "Software",
-    "high",
-    "new",
-    null,
-    191,
-    "Export to Excel closes the ERP client with no error message.",
-  ),
-  make(
-    "RC-4174",
-    "Outlook keeps asking for password every hour",
-    "Emily Cross",
-    "Block C · Room 110",
-    "Access/Passwords",
-    "medium",
-    "in_progress",
-    "grace.mwangi@vicacademy.org",
-    188,
-    "Credential prompt reappears roughly every hour on the desktop client.",
-  ),
-  make(
-    "RC-4175",
-    "Finance floor printer jams on every duplex job",
-    "James Liu",
-    "Block B · Print Bay",
-    "Printing",
-    "medium",
-    "on_hold",
-    null,
-    216,
-    "Duplex jobs jam at the rear tray; simplex prints fine. Waiting on parts.",
-  ),
-  make(
-    "RC-4168",
-    "New starter account for lab assistant",
-    "Grace Mwangi",
-    "Block D · Lab 2",
-    "Accounts",
-    "low",
-    "resolved",
-    "grace.mwangi@vicacademy.org",
-    260,
-    "Provision account, mailbox and lab group access for new lab assistant.",
-  ),
-  make(
-    "RC-4161",
-    "Wi-Fi drops in the sports hall during assemblies",
-    "Stephen John",
-    "Sports Hall",
-    "Network/Wi-Fi",
-    "high",
-    "closed",
-    "daniel.oyoo@vicacademy.org",
-    400,
-    "Access point saturation during full-capacity events. Second AP installed.",
-  ),
-];
+export const isStaffRole = (role: Role | null) => role === "technician" || role === "admin";
 
 export function slaState(t: Ticket, now: number) {
-  const due = new Date(t.slaDueAt).getTime();
+  const due = new Date(t.sla_due_at).getTime();
   const diffMs = due - now;
   const overdue = diffMs < 0;
   const abs = Math.abs(diffMs);
@@ -256,10 +84,60 @@ export function slaState(t: Ticket, now: number) {
   const mins = Math.floor((abs % 3600_000) / 60_000);
   const label = `${hours}h ${mins}m ${overdue ? "overdue" : "left"}`;
   const total = SLA_HOURS[t.priority] * 3600_000;
-  const used = Math.min(1, Math.max(0, (now - new Date(t.createdAt).getTime()) / total));
+  const used = Math.min(1, Math.max(0, (now - new Date(t.created_at).getTime()) / total));
   const settled = t.status === "resolved" || t.status === "closed";
   return { overdue: overdue && !settled, label, progress: used, settled };
 }
 
-export const isActive = (t: Ticket) =>
-  t.status === "new" || t.status === "in_progress" || t.status === "on_hold";
+/** Critical ticket left unclaimed past the escalation threshold. */
+export function needsEscalation(t: Ticket, now: number) {
+  if (t.assignee_id || t.priority !== "critical" || !isActive(t)) return false;
+  return now - new Date(t.created_at).getTime() > ESCALATION_MINUTES * 60_000;
+}
+
+export function pendingState(t: Ticket, now: number) {
+  if (t.status !== "pending" || !t.pending_since) return null;
+  const hours = (now - new Date(t.pending_since).getTime()) / 3600_000;
+  return {
+    hours: Math.floor(hours),
+    nudgeDue: hours >= PENDING_NUDGE_HOURS,
+    autoCloseDue: hours >= PENDING_AUTOCLOSE_DAYS * 24,
+  };
+}
+
+export function canReopen(t: Ticket, now: number) {
+  if (t.status !== "resolved" && t.status !== "closed") return false;
+  if (!t.resolved_at) return false;
+  return now - new Date(t.resolved_at).getTime() <= REOPEN_WINDOW_DAYS * 86_400_000;
+}
+
+export function ago(iso: string, now: number) {
+  const ms = now - new Date(iso).getTime();
+  const days = Math.floor(ms / 86_400_000);
+  if (days >= 1) return `${days}d ago`;
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 1) return `${hours}h ago`;
+  const mins = Math.floor(ms / 60_000);
+  return mins >= 1 ? `${mins}m ago` : "just now";
+}
+
+export function ticketsToCsv(tickets: Ticket[]) {
+  const cols = [
+    "ref",
+    "title",
+    "requester_email",
+    "assignee_email",
+    "location",
+    "department",
+    "workstation",
+    "category",
+    "priority",
+    "status",
+    "created_at",
+    "resolved_at",
+    "resolution_notes",
+    "satisfaction",
+  ] as const;
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  return [cols.join(","), ...tickets.map((t) => cols.map((c) => esc(t[c])).join(","))].join("\n");
+}
