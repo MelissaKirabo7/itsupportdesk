@@ -1,104 +1,271 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import {
-  CURRENT_USER,
-  SEED_TICKETS,
-  SLA_HOURS,
-  type Note,
-  type Priority,
-  type Status,
-  type Ticket,
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./auth";
+import type {
+  Announcement,
+  CannedResponse,
+  Category,
+  FaqArticle,
+  Priority,
+  Status,
+  Ticket,
+  TicketNote,
 } from "./tickets";
 
-type NewTicket = {
+export type NewTicket = {
   title: string;
   description: string;
-  requester: string;
   location: string;
-  category: Ticket["category"];
+  department: string;
+  workstation: string;
+  category: Category;
   priority: Priority;
+  parent_ticket_id?: string | null;
 };
-
-type Store = {
-  tickets: Ticket[];
-  create: (input: NewTicket) => Ticket;
-  update: (id: string, patch: Partial<Ticket>) => void;
-  claim: (id: string) => void;
-  addNote: (id: string, body: string, internal: boolean) => void;
-};
-
-const TicketContext = createContext<Store | null>(null);
-
-let counter = 4182;
-
-export function TicketProvider({ children }: { children: ReactNode }) {
-  const [tickets, setTickets] = useState<Ticket[]>(SEED_TICKETS);
-
-  const value = useMemo<Store>(
-    () => ({
-      tickets,
-      create(input) {
-        const now = new Date();
-        const ref = `RC-${counter++}`;
-        const ticket: Ticket = {
-          ...input,
-          id: ref,
-          ref,
-          status: "new",
-          assignee: null,
-          createdAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-          slaDueAt: new Date(now.getTime() + SLA_HOURS[input.priority] * 3600_000).toISOString(),
-          notes: [],
-        };
-        setTickets((prev) => [ticket, ...prev]);
-        return ticket;
-      },
-      update(id, patch) {
-        setTickets((prev) =>
-          prev.map((t) =>
-            t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t,
-          ),
-        );
-      },
-      claim(id) {
-        setTickets((prev) =>
-          prev.map((t) =>
-            t.id === id
-              ? {
-                  ...t,
-                  assignee: CURRENT_USER.email,
-                  status: (t.status === "new" ? "in_progress" : t.status) as Status,
-                  updatedAt: new Date().toISOString(),
-                }
-              : t,
-          ),
-        );
-      },
-      addNote(id, body, internal) {
-        const note: Note = {
-          id: Math.random().toString(36).slice(2),
-          author: CURRENT_USER.email,
-          body,
-          at: new Date().toISOString(),
-          internal,
-        };
-        setTickets((prev) =>
-          prev.map((t) =>
-            t.id === id
-              ? { ...t, notes: [...t.notes, note], updatedAt: new Date().toISOString() }
-              : t,
-          ),
-        );
-      },
-    }),
-    [tickets],
-  );
-
-  return <TicketContext.Provider value={value}>{children}</TicketContext.Provider>;
-}
 
 export function useTickets() {
-  const ctx = useContext(TicketContext);
-  if (!ctx) throw new Error("useTickets must be used inside TicketProvider");
-  return ctx;
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ["tickets", user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<Ticket[]> => {
+      const { data, error } = await supabase
+        .from("tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+  return { tickets: query.data ?? [], isLoading: query.isLoading, error: query.error };
+}
+
+export function useTicket(id: string) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["ticket", id, user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<Ticket | null> => {
+      const { data, error } = await supabase.from("tickets").select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useNotes(ticketId: string) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["notes", ticketId, user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<TicketNote[]> => {
+      const { data, error } = await supabase
+        .from("ticket_notes")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useFaqArticles() {
+  return useQuery({
+    queryKey: ["faq"],
+    queryFn: async (): Promise<FaqArticle[]> => {
+      const { data, error } = await supabase
+        .from("faq_articles")
+        .select("*")
+        .eq("published", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useCannedResponses() {
+  return useQuery({
+    queryKey: ["canned"],
+    queryFn: async (): Promise<CannedResponse[]> => {
+      const { data, error } = await supabase.from("canned_responses").select("*").order("title");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useAnnouncement() {
+  return useQuery({
+    queryKey: ["announcement"],
+    queryFn: async (): Promise<Announcement | null> => {
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useTicketActions() {
+  const { user, profile } = useAuth();
+  const qc = useQueryClient();
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ["tickets"] });
+    void qc.invalidateQueries({ queryKey: ["ticket"] });
+    void qc.invalidateQueries({ queryKey: ["notes"] });
+  };
+
+  const create = useMutation({
+    mutationFn: async (input: NewTicket): Promise<Ticket> => {
+      if (!user) throw new Error("You must be signed in.");
+      const { data, error } = await supabase
+        .from("tickets")
+        .insert({
+          ...input,
+          requester_id: user.id,
+          requester_email: user.email ?? profile?.email ?? "",
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Ticket> }) => {
+      const { error } = await supabase.from("tickets").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const claim = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: Status }) => {
+      if (!user) throw new Error("You must be signed in.");
+      const { error } = await supabase
+        .from("tickets")
+        .update({
+          assignee_id: user.id,
+          assignee_email: user.email ?? "",
+          status: status === "new" ? "in_progress" : status,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const assign = useMutation({
+    mutationFn: async ({ id, userId, email }: { id: string; userId: string; email: string }) => {
+      const { error } = await supabase
+        .from("tickets")
+        .update({ assignee_id: userId, assignee_email: email })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const addNote = useMutation({
+    mutationFn: async ({
+      ticketId,
+      body,
+      internal,
+    }: {
+      ticketId: string;
+      body: string;
+      internal: boolean;
+    }) => {
+      if (!user) throw new Error("You must be signed in.");
+      const { error } = await supabase.from("ticket_notes").insert({
+        ticket_id: ticketId,
+        author_id: user.id,
+        author_email: user.email ?? "",
+        body,
+        internal,
+      });
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const resolve = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await supabase
+        .from("tickets")
+        .update({ status: "resolved", resolution_notes: notes })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const reopen = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      if (!user) throw new Error("You must be signed in.");
+      const { error } = await supabase.from("tickets").update({ status: "new" }).eq("id", id);
+      if (error) throw error;
+      await supabase.from("ticket_notes").insert({
+        ticket_id: id,
+        author_id: user.id,
+        author_email: user.email ?? "",
+        body: `Ticket reopened: ${reason}`,
+        internal: false,
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const rate = useMutation({
+    mutationFn: async ({ id, score }: { id: string; score: number }) => {
+      const { error } = await supabase.from("tickets").update({ satisfaction: score }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const publishFaq = useMutation({
+    mutationFn: async (article: { title: string; body: string; category: string; ticketId: string }) => {
+      const { error } = await supabase.from("faq_articles").insert({
+        title: article.title,
+        body: article.body,
+        category: article.category,
+        source_ticket_id: article.ticketId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["faq"] }),
+  });
+
+  return { create, update, claim, assign, addNote, resolve, reopen, rate, publishFaq };
+}
+
+export function useStaffDirectory() {
+  return useQuery({
+    queryKey: ["staff"],
+    queryFn: async () => {
+      const { data: roles, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("role", ["technician", "admin"]);
+      if (error) throw error;
+      const ids = (roles ?? []).map((r) => r.user_id);
+      if (ids.length === 0) return [];
+      const { data: profiles, error: pErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", ids);
+      if (pErr) throw pErr;
+      return profiles ?? [];
+    },
+  });
 }

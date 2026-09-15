@@ -24,7 +24,7 @@ export function PriorityTag({ priority }: { priority: Priority }) {
 const statusStyles: Record<Status, string> = {
   new: "bg-signal-new text-signal-new-fg",
   in_progress: "bg-signal-progress text-signal-progress-fg",
-  on_hold: "bg-signal-hold text-signal-hold-fg",
+  pending: "bg-signal-hold text-signal-hold-fg",
   resolved: "bg-signal-done text-signal-done-fg",
   closed: "bg-secondary text-muted-foreground",
 };
