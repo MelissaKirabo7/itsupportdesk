@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   Archive,
+  BookOpen,
   Headset,
   LayoutGrid,
   LogOut,
@@ -8,17 +9,24 @@ import {
   Ticket,
   TicketPlus,
 } from "lucide-react";
-import { CURRENT_USER } from "@/lib/tickets";
-
-const nav = [
-  { to: "/", label: "Active Queue", icon: LayoutGrid, exact: true },
-  { to: "/submit", label: "Submit a Request", icon: TicketPlus },
-  { to: "/my-requests", label: "My Requests", icon: Ticket },
-  { to: "/archive", label: "Archive", icon: Archive },
-  { to: "/admin", label: "Admin Console", icon: ShieldCheck },
-] as const;
+import { useAuth } from "@/lib/auth";
+import { ROLE_LABEL, isStaffRole } from "@/lib/tickets";
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { profile, role, user, signOut } = useAuth();
+  const staff = isStaffRole(role);
+
+  const nav = [
+    ...(staff ? [{ to: "/", label: "Active Queue", icon: LayoutGrid }] : []),
+    { to: "/submit", label: "Submit a Request", icon: TicketPlus },
+    { to: "/my-requests", label: "My Requests", icon: Ticket },
+    { to: "/faq", label: "Self-Help & FAQ", icon: BookOpen },
+    ...(staff ? [{ to: "/archive", label: "Archive", icon: Archive }] : []),
+    ...(role === "admin" ? [{ to: "/admin", label: "Admin Console", icon: ShieldCheck }] : []),
+  ] as const;
+
+  const email = profile?.email ?? user?.email ?? "";
+
   return (
     <div className="flex h-full flex-col bg-sidebar p-5 text-sidebar-foreground">
       <div className="flex items-center gap-3 px-1 pb-8 pt-1">
@@ -49,14 +57,19 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         </p>
         <div className="mt-3 flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">
-            M
+            {(email || "?").charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{CURRENT_USER.email}</p>
-            <p className="text-xs text-sidebar-foreground/60">Administrator</p>
+            <p className="truncate text-sm font-semibold">{email}</p>
+            <p className="text-xs text-sidebar-foreground/60">
+              {role ? ROLE_LABEL[role] : "Loading…"}
+            </p>
           </div>
         </div>
-        <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-sidebar-primary px-4 py-2.5 text-sm font-semibold text-sidebar-primary-foreground transition-opacity hover:opacity-90">
+        <button
+          onClick={() => void signOut()}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-sidebar-primary px-4 py-2.5 text-sm font-semibold text-sidebar-primary-foreground transition-opacity hover:opacity-90"
+        >
           <LogOut className="h-4 w-4" />
           Sign out
         </button>
