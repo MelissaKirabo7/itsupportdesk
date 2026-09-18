@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/auth";
 import { usePeople, useSetRole, useStaffDirectory, useTickets } from "@/lib/ticket-store";
 import {
   CATEGORIES,
+  ROLE_LABEL,
+  type Role,
   PENDING_AUTOCLOSE_DAYS,
   PENDING_NUDGE_HOURS,
   PRIORITIES,
@@ -200,6 +202,36 @@ function AdminPage() {
               Publish banner
             </button>
           </div>
+        </Panel>
+
+        <Panel title="People & roles">
+          <ul className="divide-y divide-border text-sm">
+            {people.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-3 py-3">
+                <span className="min-w-0 flex-1 truncate">{p.email}</span>
+                <select
+                  aria-label={`Role for ${p.email}`}
+                  className="rounded-full border border-border bg-background px-4 py-2 text-sm"
+                  value={p.role ?? "submitter"}
+                  onChange={(e) =>
+                    setRole.mutate(
+                      { userId: p.id, role: e.target.value as Role },
+                      {
+                        onSuccess: () => toast.success(`${p.email} is now ${ROLE_LABEL[e.target.value as Role]}`),
+                        onError: (err) => toast.error(err.message),
+                      },
+                    )
+                  }
+                >
+                  {(["submitter", "technician", "admin"] as Role[]).map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
+                </select>
+              </li>
+            ))}
+          </ul>
         </Panel>
 
         <Panel title="SLA policy">
