@@ -7,6 +7,7 @@ import type {
   Category,
   FaqArticle,
   Priority,
+  Role,
   Status,
   Ticket,
   TicketNote,
