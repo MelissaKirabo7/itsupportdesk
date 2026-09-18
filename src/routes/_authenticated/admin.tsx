@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { useStaffDirectory, useTickets } from "@/lib/ticket-store";
+import { usePeople, useSetRole, useStaffDirectory, useTickets } from "@/lib/ticket-store";
 import {
   CATEGORIES,
   PENDING_AUTOCLOSE_DAYS,
