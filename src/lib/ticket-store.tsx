@@ -249,6 +249,39 @@ export function useTicketActions() {
   return { create, update, claim, assign, addNote, resolve, reopen, rate, publishFaq };
 }
 
+/** Every person with an account, plus their assigned role (admin view). */
+export function usePeople() {
+  return useQuery({
+    queryKey: ["people"],
+    queryFn: async () => {
+      const [{ data: profiles, error }, { data: roles, error: rErr }] = await Promise.all([
+        supabase.from("profiles").select("*").order("email"),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      if (error) throw error;
+      if (rErr) throw rErr;
+      const map = new Map((roles ?? []).map((r) => [r.user_id, r.role]));
+      return (profiles ?? []).map((p) => ({ ...p, role: map.get(p.id) ?? null }));
+    },
+  });
+}
+
+export function useSetRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: Role }) => {
+      const { error } = await supabase.from("user_roles").delete().eq("user_id", userId);
+      if (error) throw error;
+      const { error: iErr } = await supabase.from("user_roles").insert({ user_id: userId, role });
+      if (iErr) throw iErr;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["people"] });
+      void qc.invalidateQueries({ queryKey: ["staff"] });
+    },
+  });
+}
+
 export function useStaffDirectory() {
   return useQuery({
     queryKey: ["staff"],
