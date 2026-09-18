@@ -68,6 +68,8 @@ function AdminPage() {
   const { role } = useAuth();
   const { tickets } = useTickets();
   const { data: staff = [] } = useStaffDirectory();
+  const { data: people = [] } = usePeople();
+  const setRole = useSetRole();
   const [banner, setBanner] = useState("");
   const now = Date.now();
 
