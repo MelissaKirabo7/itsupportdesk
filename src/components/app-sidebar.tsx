@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Archive,
   BookOpen,
@@ -14,6 +14,7 @@ import { ROLE_LABEL, isStaffRole } from "@/lib/tickets";
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, role, user, signOut } = useAuth();
+  const navigate = useNavigate();
   const staff = isStaffRole(role);
 
   const nav = [
@@ -67,7 +68,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </div>
         <button
-          onClick={() => void signOut()}
+          onClick={() =>
+            void signOut().then(() => navigate({ to: "/auth", replace: true }))
+          }
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-sidebar-primary px-4 py-2.5 text-sm font-semibold text-sidebar-primary-foreground transition-opacity hover:opacity-90"
         >
           <LogOut className="h-4 w-4" />
