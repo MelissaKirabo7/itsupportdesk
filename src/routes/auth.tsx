@@ -178,11 +178,6 @@ function AuthPage() {
             Continue with Google
           </button>
         </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          The first account created becomes the administrator. Everyone else starts as an employee
-          and can be promoted from the admin console.
-        </p>
       </div>
     </div>
   );
