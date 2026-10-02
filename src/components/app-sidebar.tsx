@@ -23,6 +23,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     { to: "/submit", label: "Submit a Request", icon: TicketPlus },
     { to: "/my-requests", label: "My Requests", icon: Ticket },
     { to: "/faq", label: "Self-Help & FAQ", icon: BookOpen },
+    { to: "/account", label: "Account Settings", icon: Settings },
     ...(staff ? [{ to: "/archive", label: "Archive", icon: Archive }] : []),
     ...(role === "admin" ? [{ to: "/admin", label: "Admin Console", icon: ShieldCheck }] : []),
   ] as const;
