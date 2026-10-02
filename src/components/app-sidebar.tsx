@@ -5,6 +5,7 @@ import {
   Headset,
   LayoutGrid,
   LogOut,
+  Settings,
   ShieldCheck,
   Ticket,
   TicketPlus,
