@@ -58,29 +58,35 @@ export type Database = {
       }
       faq_articles: {
         Row: {
+          auto_generated: boolean
           body: string
           category: string
           created_at: string
           id: string
           published: boolean
+          show_in_panel: boolean
           source_ticket_id: string | null
           title: string
         }
         Insert: {
+          auto_generated?: boolean
           body: string
           category?: string
           created_at?: string
           id?: string
           published?: boolean
+          show_in_panel?: boolean
           source_ticket_id?: string | null
           title: string
         }
         Update: {
+          auto_generated?: boolean
           body?: string
           category?: string
           created_at?: string
           id?: string
           published?: boolean
+          show_in_panel?: boolean
           source_ticket_id?: string | null
           title?: string
         }
@@ -88,6 +94,44 @@ export type Database = {
           {
             foreignKeyName: "faq_articles_source_ticket_id_fkey"
             columns: ["source_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          read: boolean
+          ticket_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          message: string
+          read?: boolean
+          ticket_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          read?: boolean
+          ticket_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_ticket_id_fkey"
+            columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
             referencedColumns: ["id"]
@@ -126,6 +170,86 @@ export type Database = {
           workstation?: string
         }
         Relationships: []
+      }
+      ticket_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          note_id: string | null
+          path: string
+          ticket_id: string
+          uploader_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          note_id?: string | null
+          path: string
+          ticket_id: string
+          uploader_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          note_id?: string | null
+          path?: string
+          ticket_id?: string
+          uploader_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_attachments_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_feedback: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          rating: number
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          rating: number
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_feedback_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: true
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_notes: {
         Row: {
@@ -266,6 +390,24 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      workstations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
         }
         Relationships: []
       }
