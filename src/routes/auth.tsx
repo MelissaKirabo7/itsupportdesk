@@ -122,7 +122,7 @@ function AuthPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className={field}
-                  placeholder="Melissa Kirabo"
+                  placeholder="Your Name"
                   required
                 />
               </div>

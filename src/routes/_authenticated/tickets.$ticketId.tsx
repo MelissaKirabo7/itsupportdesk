@@ -27,6 +27,8 @@ import {
   type Status,
 } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
+import { ImagePicker } from "@/components/image-picker";
+import { uploadImages, useAttachments, useFeedback } from "@/lib/extras-store";
 
 export const Route = createFileRoute("/_authenticated/tickets/$ticketId")({
   head: () => ({
@@ -55,11 +57,16 @@ function TicketPage() {
   const { data: notes = [] } = useNotes(ticketId);
   const { data: directory = [] } = useStaffDirectory();
   const { data: canned = [] } = useCannedResponses();
-  const { update, claim, assign, addNote, resolve, reopen, rate, publishFaq } = useTicketActions();
+  const { update, claim, assign, addNote, resolve, reopen, publishFaq } = useTicketActions();
 
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
   const [resolution, setResolution] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [stars, setStars] = useState(0);
+  const [reason, setReason] = useState("");
+  const { data: attachments = [], refetch: refetchAttachments } = useAttachments(ticketId);
+  const { feedback, save: saveFeedback } = useFeedback(ticketId);
   const now = Date.now();
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading ticket…</p>;
@@ -80,6 +87,8 @@ function TicketPage() {
   const pending = pendingState(ticket, now);
   const isRequester = ticket.requester_id === user?.id;
   const settled = ticket.status === "resolved" || ticket.status === "closed";
+  const staffActs = staff && !isRequester;
+  const canReply = staffActs || isRequester;
 
   function notify(message: string) {
     return {
@@ -136,6 +145,15 @@ function TicketPage() {
             <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
               {ticket.description}
             </p>
+            {attachments.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {attachments.map((a) => (
+                  <a key={a.id} href={a.url} target="_blank" rel="noreferrer" title={a.file_name}>
+                    <img src={a.url} alt={a.file_name} className="h-24 w-24 rounded-xl object-cover" />
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-3xl bg-card p-6 shadow-sm">
@@ -167,8 +185,13 @@ function TicketPage() {
               ))}
             </ol>
 
+            {!canReply ? (
+              <p className="mt-6 border-t border-border pt-5 text-sm text-muted-foreground">
+                {isRequester ? "" : "Only the IT team and the person who raised this ticket can reply."}
+              </p>
+            ) : (
             <div className="mt-6 space-y-3 border-t border-border pt-5">
-              {staff && canned.length > 0 ? (
+              {staffActs && canned.length > 0 ? (
                 <select
                   aria-label="Insert a canned response"
                   className={selectClass}
@@ -194,8 +217,9 @@ function TicketPage() {
                 aria-label="Add an update"
                 className={cn(selectClass, "resize-y")}
               />
+              <ImagePicker files={files} onChange={setFiles} />
               <div className="flex flex-wrap items-center gap-3">
-                {staff ? (
+                {staffActs ? (
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -209,9 +233,18 @@ function TicketPage() {
                   onClick={() => {
                     if (reply.trim().length < 2) return;
                     addNote.mutate(
-                      { ticketId: ticket.id, body: reply.trim(), internal: staff && internal },
+                      { ticketId: ticket.id, body: reply.trim(), internal: staffActs && internal },
                       {
-                        onSuccess: () => {
+                        onSuccess: async (noteId) => {
+                          if (files.length && user) {
+                            try {
+                              await uploadImages(user.id, ticket.id, files, noteId);
+                              void refetchAttachments();
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : "Image upload failed");
+                            }
+                          }
+                          setFiles([]);
                           setReply("");
                           toast.success("Update posted");
                         },
@@ -226,6 +259,7 @@ function TicketPage() {
                 </button>
               </div>
             </div>
+            )}
           </section>
 
           {settled && ticket.resolution_notes ? (
@@ -234,7 +268,7 @@ function TicketPage() {
               <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
                 {ticket.resolution_notes}
               </p>
-              {staff ? (
+              {staffActs ? (
                 <button
                   onClick={() =>
                     publishFaq.mutate(
@@ -258,7 +292,12 @@ function TicketPage() {
         </div>
 
         <aside className="space-y-6">
-          {staff ? (
+          {staff && isRequester ? (
+            <p className="rounded-3xl bg-card p-6 text-sm text-muted-foreground shadow-sm">
+              You raised this ticket, so another technician must claim and work it.
+            </p>
+          ) : null}
+          {staffActs ? (
             <section className="space-y-4 rounded-3xl bg-card p-6 shadow-sm">
               <h2 className="font-display text-lg font-semibold">Controls</h2>
 
@@ -326,7 +365,7 @@ function TicketPage() {
                   }}
                 >
                   <option value="">Unassigned</option>
-                  {directory.map((p) => (
+                  {directory.filter((p) => p.id !== ticket.requester_id).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.email}
                       {p.on_leave ? " (on leave)" : ""}
@@ -383,16 +422,16 @@ function TicketPage() {
 
           {isRequester && settled ? (
             <section className="space-y-4 rounded-3xl bg-card p-6 shadow-sm">
-              <h2 className="font-display text-lg font-semibold">Your feedback</h2>
+              <h2 className="font-display text-lg font-semibold">How was the service you received?</h2>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
                     aria-label={`Rate ${n} out of 5`}
-                    onClick={() => rate.mutate({ id: ticket.id, score: n }, notify("Thanks for the rating"))}
+                    onClick={() => setStars(n)}
                     className={cn(
                       "grid h-10 w-10 place-items-center rounded-full border transition-colors",
-                      (ticket.satisfaction ?? 0) >= n
+                      (stars || feedback?.rating || 0) >= n
                         ? "border-warn bg-warn-soft text-warn"
                         : "border-border hover:bg-muted",
                     )}
@@ -401,6 +440,31 @@ function TicketPage() {
                   </button>
                 ))}
               </div>
+              <textarea
+                rows={3}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder={feedback?.comment ?? "Tell us why you gave this rating (required)"}
+                aria-label="Reason for your rating"
+                className={cn(selectClass, "resize-y")}
+              />
+              <button
+                onClick={() => {
+                  const rating = stars || feedback?.rating || 0;
+                  if (!rating) return toast.error("Choose a star rating first.");
+                  if (reason.trim().length < 5) return toast.error("Please explain your rating (at least 5 characters).");
+                  saveFeedback.mutate(
+                    { rating, comment: reason.trim() },
+                    { onSuccess: () => { setReason(""); toast.success("Thanks for your feedback"); }, onError: (e) => toast.error(e.message) },
+                  );
+                }}
+                className="w-full rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                {feedback ? "Update feedback" : "Submit feedback"}
+              </button>
+              {feedback ? (
+                <p className="text-xs text-muted-foreground">You rated {feedback.rating}/5: “{feedback.comment}”</p>
+              ) : null}
               {canReopen(ticket, now) ? (
                 <button
                   onClick={() =>
