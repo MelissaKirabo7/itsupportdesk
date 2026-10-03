@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { Initial, PriorityTag, StatusBadge } from "@/components/badges";
+import { useAuth } from "@/lib/auth";
 import { useTicketActions } from "@/lib/ticket-store";
 import { ago, needsEscalation, slaState, type Ticket } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export function TicketTable({
   emptyLabel?: string;
 }) {
   const { claim } = useTicketActions();
+  const { user } = useAuth();
 
   if (tickets.length === 0) {
     return <p className="px-6 py-14 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
@@ -75,7 +77,7 @@ export function TicketTable({
                       <Initial email={t.assignee_email} />
                       <span className="truncate text-sm">{t.assignee_email}</span>
                     </span>
-                  ) : showClaim ? (
+                  ) : showClaim && t.requester_id !== user?.id ? (
                     <button
                       onClick={() =>
                         claim.mutate(

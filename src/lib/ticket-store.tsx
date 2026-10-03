@@ -187,14 +187,19 @@ export function useTicketActions() {
       internal: boolean;
     }) => {
       if (!user) throw new Error("You must be signed in.");
-      const { error } = await supabase.from("ticket_notes").insert({
-        ticket_id: ticketId,
-        author_id: user.id,
-        author_email: user.email ?? "",
-        body,
-        internal,
-      });
+      const { data, error } = await supabase
+        .from("ticket_notes")
+        .insert({
+          ticket_id: ticketId,
+          author_id: user.id,
+          author_email: user.email ?? "",
+          body,
+          internal,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      return data.id;
     },
     onSuccess: invalidate,
   });
