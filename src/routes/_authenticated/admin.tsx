@@ -4,6 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
+import { BannerList, WorkstationManager } from "@/components/admin-extras";
+import { useAnnouncementsAdmin } from "@/lib/extras-store";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePeople, useSetRole, useStaffDirectory, useTickets } from "@/lib/ticket-store";
@@ -71,6 +73,7 @@ function AdminPage() {
   const { data: people = [] } = usePeople();
   const setRole = useSetRole();
   const [banner, setBanner] = useState("");
+  const banners = useAnnouncementsAdmin();
   const now = Date.now();
 
   if (role !== "admin") {
@@ -133,6 +136,7 @@ function AdminPage() {
     else {
       toast.success("Outage banner published to everyone");
       setBanner("");
+      banners.refresh();
     }
   }
 
@@ -157,6 +161,10 @@ function AdminPage() {
         <StatCard label="Active" value={active.length} hint="Open across the desk" />
         <StatCard label="SLA compliance" value={`${compliance}%`} hint="First response met" />
         <StatCard label="Satisfaction" value={csat} hint={`${rated.length} ratings`} />
+        <StatCard label="Unassigned" value={active.filter((t) => !t.assignee_id).length} hint="Waiting for a technician" />
+        <StatCard label="Critical open" value={active.filter((t) => t.priority === "critical").length} hint="2h response target" />
+        <StatCard label="Overdue SLAs" value={active.filter((t) => slaState(t, now).overdue).length} hint="Needs attention now" />
+        <StatCard label="People" value={people.length} hint={`${staff.length} on the IT team`} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -203,7 +211,14 @@ function AdminPage() {
               <Megaphone className="h-4 w-4" />
               Publish banner
             </button>
+            <div className="border-t border-border pt-3">
+              <BannerList />
+            </div>
           </div>
+        </Panel>
+
+        <Panel title="Workstations">
+          <WorkstationManager />
         </Panel>
 
         <Panel title="People & roles">

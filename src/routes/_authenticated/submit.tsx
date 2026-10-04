@@ -15,6 +15,8 @@ import {
   type Priority,
 } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
+import { ImagePicker } from "@/components/image-picker";
+import { uploadImages, useWorkstations } from "@/lib/extras-store";
 
 export const Route = createFileRoute("/_authenticated/submit")({
   head: () => ({
@@ -51,7 +53,10 @@ function SubmitPage() {
   const { user, profile, refreshProfile } = useAuth();
   const { create } = useTicketActions();
   const { tickets } = useTickets();
-  const { data: faqs = [] } = useFaqArticles();
+  const { data: allFaqs = [] } = useFaqArticles();
+  const faqs = allFaqs.filter((a) => a.show_in_panel);
+  const { data: stations = [] } = useWorkstations();
+  const [files, setFiles] = useState<File[]>([]);
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
@@ -114,6 +119,13 @@ function SubmitPage() {
         category,
         priority,
       });
+      if (user && files.length) {
+        try {
+          await uploadImages(user.id, ticket.id, files);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Image upload failed");
+        }
+      }
       if (user) {
         await import("@/integrations/supabase/client").then(({ supabase }) =>
           supabase
@@ -218,11 +230,22 @@ function SubmitPage() {
               <label className={labelCls} htmlFor="workstation">
                 Workstation ID
               </label>
+              <select
+                aria-label="Pick a workstation"
+                value={stations.some((w) => w.name === workstation) ? workstation : ""}
+                onChange={(e) => setWorkstation(e.target.value)}
+                className={field}
+              >
+                <option value="">Choose from the list…</option>
+                {stations.map((w) => (
+                  <option key={w.id} value={w.name}>{w.name}</option>
+                ))}
+              </select>
               <input
                 id="workstation"
                 value={workstation}
                 onChange={(e) => setWorkstation(e.target.value)}
-                placeholder="VIC-2141"
+                placeholder="…or type your own"
                 className={field}
               />
             </div>
@@ -253,6 +276,11 @@ function SubmitPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className={labelCls}>Screenshots or photos (optional)</p>
+            <ImagePicker files={files} onChange={setFiles} />
           </div>
 
           <fieldset className="space-y-3">
@@ -295,9 +323,15 @@ function SubmitPage() {
               Try this first
             </h2>
             {suggestions.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Start typing a summary and matching self-help steps appear here.
-              </p>
+              <ul className="mt-4 space-y-4">
+                {faqs.slice(0, 3).map((a) => (
+                  <li key={a.id}>
+                    <p className="text-sm font-medium">{a.title}</p>
+                    <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">{a.body}</p>
+                  </li>
+                ))}
+                {faqs.length === 0 ? <p className="text-sm text-muted-foreground">Start typing a summary and matching self-help steps appear here.</p> : null}
+              </ul>
             ) : (
               <ul className="mt-4 space-y-4">
                 {suggestions.map((a) => (
