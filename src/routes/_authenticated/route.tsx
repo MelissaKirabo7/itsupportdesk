@@ -1,10 +1,11 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
-import { Bell, Menu, Megaphone, Search } from "lucide-react";
+import { Menu, Megaphone, Search } from "lucide-react";
 import { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useAnnouncement } from "@/lib/ticket-store";
+import { NotificationBell } from "@/components/notification-bell";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -60,12 +61,7 @@ function TopBar() {
       </form>
 
       <div className="flex items-center gap-2">
-        <button
-          aria-label="Notifications"
-          className="grid h-10 w-10 place-items-center rounded-full bg-card shadow-sm"
-        >
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
       </div>
     </header>
   );
