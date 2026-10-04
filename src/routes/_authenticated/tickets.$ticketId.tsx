@@ -451,8 +451,8 @@ function TicketPage() {
               <button
                 onClick={() => {
                   const rating = stars || feedback?.rating || 0;
-                  if (!rating) return toast.error("Choose a star rating first.");
-                  if (reason.trim().length < 5) return toast.error("Please explain your rating (at least 5 characters).");
+                  if (!rating) { toast.error("Choose a star rating first."); return; }
+                  if (reason.trim().length < 5) { toast.error("Please explain your rating (at least 5 characters)."); return; }
                   saveFeedback.mutate(
                     { rating, comment: reason.trim() },
                     { onSuccess: () => { setReason(""); toast.success("Thanks for your feedback"); }, onError: (e) => toast.error(e.message) },

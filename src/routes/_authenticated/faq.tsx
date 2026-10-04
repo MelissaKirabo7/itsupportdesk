@@ -43,7 +43,7 @@ function buildReports(tickets: Ticket[]) {
       `Here is what usually solved them — try these before logging a request:\n\n` +
       fixes.map((f, i) => `${i + 1}. ${f}`).join("\n") +
       `\n\nStill stuck? Submit a request and mention what you already tried.`;
-    return { title: `Common ${c} fixes`, body, category: c };
+    return { title: `Common ${c} fixes`, body, category: c as string };
   }).filter((r): r is { title: string; body: string; category: string } => r !== null);
 }
 
@@ -106,8 +106,10 @@ function FaqPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (draft.title.trim().length < 5 || draft.body.trim().length < 20)
-              return toast.error("Add a title (5+) and steps (20+ characters).");
+            if (draft.title.trim().length < 5 || draft.body.trim().length < 20) {
+              toast.error("Add a title (5+) and steps (20+ characters).");
+              return;
+            }
             create.mutate(
               { title: draft.title.trim(), body: draft.body.trim(), category: draft.category },
               { onSuccess: () => { setDraft({ title: "", body: "", category: "General" }); toast.success("Article published"); } },
